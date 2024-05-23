@@ -1,0 +1,47 @@
+name: aggregate_1min_mv
+description: |
+  Aggregates all the metrics for a 1 min interval tumbling window.
+  Metrics are stored as an "aggregated state" that can be extracted by endpoints.
+nodes:
+  - aggregate:
+      # language=ClickHouse SQL
+      sql: |-
+        SELECT tumbleStart(e.timestamp, toIntervalMinute(1))                 AS start,
+               tumbleEnd(e.timestamp, toIntervalMinute(1))                   AS end,
+               e.model,
+               e.group_id,
+               countState(e.id)                                              AS request_count,
+               quantileState(0.5)(e.processing_time)                         AS generation_time_p50,
+               quantileState(0.95)(e.processing_time)                        AS generation_time_p95,
+               sumState(e.req_tokens)                                        AS total_prompt_tokens,
+               sumState(e.resp_tokens)                                       AS total_completion_tokens,
+               quantileState(0.5)(e.resp_tokens / e.processing_time * 1000)  AS tokens_per_sec_p50,
+               quantileState(0.95)(e.resp_tokens / e.processing_time * 1000) AS tokens_per_sec_p95,
+               sumState(e.req_tokens * p.req_price / 1000 / 1000)            AS total_cost_prompt,
+               sumState(e.resp_tokens * p.resp_price / 1000 / 1000)          AS total_cost_completion
+        FROM events e
+                 LEFT JOIN prices p ON e.model = p.model
+        GROUP BY start, end, model, group_id
+to: aggregate_1min
+---
+name: aggregate_1min
+description: |
+  Table for holding the intermediate aggregated state (1 min window).
+cols:
+  start: DateTime
+  end: DateTime
+  model: String
+  group_id: String
+  request_count: AggregateFunction(count, String)
+  generation_time_p50: AggregateFunction(quantile(0.5), UInt32)
+  generation_time_p95: AggregateFunction(quantile(0.95), UInt32)
+  total_prompt_tokens: AggregateFunction(sum, UInt32)
+  total_completion_tokens: AggregateFunction(sum, UInt32)
+  tokens_per_sec_p50: AggregateFunction(quantile(0.5), Float64)
+  tokens_per_sec_p95: AggregateFunction(quantile(0.95), Float64)
+  total_cost_prompt: AggregateFunction(sum, Float64)
+  total_cost_completion: AggregateFunction(sum, Float64)
+settings: |-
+  AggregatingMergeTree()
+  ORDER BY (group_id, model, start, end)
+  PARTITION BY toYYYYMM(start)

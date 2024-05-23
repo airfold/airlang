@@ -1,0 +1,15 @@
+description: |
+  The main events table. Monitored events are getting ingested here.
+cols:
+  id: String
+  timestamp: DateTime
+  model: String
+  group_id: String
+  processing_time: UInt32
+  req_tokens: UInt32
+  resp_tokens: UInt32
+settings:
+  engine: MergeTree()
+  order_by: (`group_id`, `model`, `timestamp`)
+  primary_key: (`group_id`, `model`)
+  partition_by: toYYYYMM(`timestamp`)

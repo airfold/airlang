@@ -1,0 +1,27 @@
+name: high_processing_time_mv
+description: |
+  Pushes events with the high processing time to the `high_processing_time` table.
+nodes:
+  - alert:
+      # language=ClickHouse SQL
+      sql: |-
+        SELECT id, timestamp, model, group_id, processing_time, req_tokens, resp_tokens
+        FROM events
+        WHERE processing_time > 30 * 1000
+to: high_processing_time
+---
+name: high_processing_time
+description: |
+  Stores all events that are above the threshold set in the `high_processing_time_mv`.
+cols:
+  id: String
+  timestamp: DateTime
+  model: String
+  group_id: String
+  processing_time: UInt32
+  req_tokens: UInt32
+  resp_tokens: UInt32
+settings: |-
+  MergeTree()
+  ORDER BY (group_id, model, timestamp)
+  PARTITION BY toYYYYMM(timestamp)

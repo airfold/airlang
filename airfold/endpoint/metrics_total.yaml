@@ -1,0 +1,46 @@
+name: metrics_total
+description: |
+  Get total metrics for a specific `start_time` to `end_time` period.
+  Default time range: 1 DAY from now.
+  Specific `model` or `group_id` can be also specified to get filtered data.
+nodes:
+  - endpoint:
+      # language=ClickHouse SQL
+      sql: |-
+        SELECT countMerge(request_count)                AS request_count,
+               quantileMerge(0.5)(generation_time_p50)  AS generation_time_p50,
+               quantileMerge(0.95)(generation_time_p95) AS generation_time_p95,
+               sumMerge(total_prompt_tokens)            AS total_prompt_tokens,
+               sumMerge(total_completion_tokens)        AS total_completion_tokens,
+               quantileMerge(0.5)(tokens_per_sec_p50)   AS tokens_per_sec_p50,
+               quantileMerge(0.95)(tokens_per_sec_p95)  AS tokens_per_sec_p95,
+               sumMerge(total_cost_prompt) + sumMerge(total_cost_completion) AS total_cost
+        FROM aggregate_1min
+        WHERE 1=1
+            {% if group_id is defined %}
+                AND group_id = {{ group_id }}
+            {% elif model is defined %}
+                AND model = {{ model }}
+            {% endif %}
+        AND
+            {% if start_time is defined %}
+                start >= toStartOfMinute({{ start_time }}:: DateTime)
+            {% else %}
+                start >= now() - INTERVAL 1 DAY
+            {% endif %}
+        AND
+            {% if end_time is defined %}
+                end <= toStartOfMinute({{ end_time }}:: DateTime)
+            {% else %}
+                end <= now()
+            {% endif %}
+params:
+  - name: start_time
+    type: datetime
+  - name: end_time
+    type: datetime
+  - name: group_id
+    type: string
+  - name: model
+    type: string
+publish: metrics_total
