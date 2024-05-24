@@ -1,9 +1,9 @@
-description: |
-  Table of pricing information from https://openai.com/api/pricing/
 cols:
   model: String
   req_price: Float64
   resp_price: Float64
+description: |
+  Table of pricing information from https://openai.com/api/pricing/
 settings:
   engine: MergeTree()
   order_by: model

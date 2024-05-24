@@ -1,10 +1,8 @@
-name: metrics
 description: |
   Get metrics per model and group_id for a specific `start_time` to `end_time` period.
   Default: 1 DAY from now
 nodes:
   - endpoint:
-      # language=ClickHouse SQL
       sql: |-
         SELECT model,
                group_id,

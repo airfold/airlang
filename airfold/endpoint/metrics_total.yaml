@@ -1,11 +1,9 @@
-name: metrics_total
 description: |
   Get total metrics for a specific `start_time` to `end_time` period.
   Default time range: 1 DAY from now.
   Specific `model` or `group_id` can be also specified to get filtered data.
 nodes:
   - endpoint:
-      # language=ClickHouse SQL
       sql: |-
         SELECT countMerge(request_count)                AS request_count,
                quantileMerge(0.5)(generation_time_p50)  AS generation_time_p50,
