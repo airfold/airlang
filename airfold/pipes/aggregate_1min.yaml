@@ -4,7 +4,6 @@ description: |
   Metrics are stored as an "aggregated state" that can be extracted by endpoints.
 nodes:
   - aggregate:
-      # language=ClickHouse SQL
       sql: |-
         SELECT tumbleStart(e.timestamp, toIntervalMinute(1))                 AS start,
                tumbleEnd(e.timestamp, toIntervalMinute(1))                   AS end,
@@ -24,9 +23,9 @@ nodes:
         GROUP BY start, end, model, group_id
 to: aggregate_1min
 ---
+version: clickhouse.airfold.co/v1
+type: Table
 name: aggregate_1min
-description: |
-  Table for holding the intermediate aggregated state (1 min window).
 cols:
   start: DateTime
   end: DateTime
@@ -41,6 +40,8 @@ cols:
   tokens_per_sec_p95: AggregateFunction(quantile(0.95), Float64)
   total_cost_prompt: AggregateFunction(sum, Float64)
   total_cost_completion: AggregateFunction(sum, Float64)
+description: |
+  Table for holding the intermediate aggregated state (1 min window).
 settings: |-
   AggregatingMergeTree()
   ORDER BY (group_id, model, start, end)
