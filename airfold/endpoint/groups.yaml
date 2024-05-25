@@ -1,0 +1,27 @@
+name: all_groups
+cols:
+  group_id: String
+settings: |
+  AggregatingMergeTree()
+  ORDER BY group_id
+---
+name: groups_mv
+nodes:
+  - collect:
+      # language=clickhouse
+      sql: |
+        SELECT DISTINCT e.group_id
+        FROM events e
+                 LEFT JOIN all_groups a ON e.group_id = a.group_id
+        WHERE a.group_id = ''
+to: all_groups
+---
+name: groups
+nodes:
+  - endpoint:
+      # language=clickhouse
+      sql: |
+        SELECT group_id
+        FROM all_groups
+        ORDER BY group_id
+publish: groups

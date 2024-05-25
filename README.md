@@ -78,3 +78,12 @@ python main.py
 $
 ```
 _you can create a special `ingest` key for this task in your Airfold workspace_
+
+### Check the monitoring data on a dashboard
+
+Run the sample dashboard app:
+```shell
+AIRFOLD_API_KEY=aft_6eab8fcd902e4cbfb63ba174469989cd.Ds1PME5dQsJKosKQWVcZiBSlRFBbmhzIocvHg8KQddV \
+streamlit run dashboard.py
+```
+

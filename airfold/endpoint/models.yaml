@@ -1,0 +1,27 @@
+name: all_models
+cols:
+  model: String
+settings: |
+  AggregatingMergeTree()
+  ORDER BY model
+---
+name: models_mv
+nodes:
+  - collect:
+      # language=clickhouse
+      sql: |
+        SELECT DISTINCT e.model
+        FROM events e
+                 LEFT JOIN all_models a ON e.model = a.model
+        WHERE a.model = ''
+to: all_models
+---
+name: models
+nodes:
+  - endpoint:
+      # language=clickhouse
+      sql: |
+        SELECT model
+        FROM all_models
+        ORDER BY model
+publish: models
