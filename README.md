@@ -1,4 +1,4 @@
-# Airang
+# Airlang
 
 ## ⚡ From Zero to Monitoring LLMs in 5 minutes ⚡
 
