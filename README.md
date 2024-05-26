@@ -6,13 +6,10 @@
 
 **⚡ 3 components: OpenAI, Streamlit, Airfold**
 
-- [Airang](#airang)
-  - [⚡ From Zero to Monitoring LLMs in 5 minutes ⚡](#-from-zero-to-monitoring-llms-in-5-minutes-)
-  - [Install](#install)
-  - [Quick Start in 2 Minutes](#quick-start-in-2-minutes)
-  - [Let's ingest 1000 rows.](#lets-ingest-1000-rows)
-  - [Let's run the Streamlit dashboard](#lets-run-the-streamlit-dashboard)
-
+- [Install](#install)
+- [Quick Start in 2 Minutes](#quick-start-in-2-minutes)
+- [Let's ingest 1000 rows.](#lets-ingest-1000-rows)
+- [Let's run the Streamlit dashboard](#lets-run-the-streamlit-dashboard)
 
 ## Install
 
