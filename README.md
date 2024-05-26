@@ -67,7 +67,7 @@ $ OPENAI_API_KEY=sk-xxxxxxxxx \
 AIRFOLD_API_KEY=aft_6eab8f...QddV \
 python main.py
 ```
-![main.py](image.png)
+![main.py](https://i.gyazo.com/f185d44504625d0f0a8869912fbc6e69.png)
 
 ## Let's run the Streamlit dashboard
 
