@@ -7,15 +7,15 @@ nodes:
       sql: |-
         WITH
             {% if start_time is defined %}
-                toStartOfFiveMinutes({{ start_time }}:: DateTime)
+                toStartOfInterval({{ start_time }}:: DateTime, INTERVAL {{ interval }} SECONDS)
             {% else %}
-                toStartOfFiveMinutes(now() - INTERVAL 1 DAY)
+                toStartOfInterval(now() - INTERVAL 1 DAY, INTERVAL {{ interval }} SECONDS)
             {% endif %}
             AS start,
             {% if end_time is defined %}
-                toStartOfFiveMinutes({{ end_time }}:: DateTime)
+                toStartOfInterval({{ end_time }}:: DateTime, INTERVAL {{ interval }} SECONDS)
             {% else %}
-                toStartOfFiveMinutes(now() + INTERVAL 5 MINUTES)
+                toStartOfInterval(now() + INTERVAL 5 MINUTES, INTERVAL {{ interval }} SECONDS)
             {% endif %}
             AS end
         SELECT
@@ -25,7 +25,7 @@ nodes:
             {% if groups is defined %}
                 arrayJoin(splitByChar(',', {{ groups }})) AS group_id,
             {% endif %}
-            arrayJoin(arrayMap(x -> toDateTime(x), range(toUInt32(start), toUInt32(end), 300))) as ts
+            arrayJoin(arrayMap(x -> toDateTime(x), range(toUInt32(start), toUInt32(end), {{ interval }}))) as ts
   - endpoint:
       # language=clickhouse
       sql: |-
@@ -46,7 +46,7 @@ nodes:
                sumMerge(a.total_cost_prompt) + sumMerge(a.total_cost_completion) AS total_cost
         FROM intervals i
                  LEFT JOIN aggregate_1min a ON (
-            toStartOfFiveMinutes(a.start) = i.ts
+            toStartOfInterval(a.start, INTERVAL {{ interval }} SECONDS) = i.ts
             {% if models is defined %}
                 AND i.model = a.model
             {% endif %}
@@ -110,4 +110,7 @@ params:
     type: string
   - name: models
     type: string
+  - name: interval
+    type: int
+    default: 300
 publish: metrics

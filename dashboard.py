@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import requests
@@ -80,14 +81,25 @@ def get_metrics(
         start_date = start_date or end_date - timedelta(days=7)
 
     params = {
-        "start_date": start_date.strftime("%Y-%m-%d %H:%M:%S"),
-        "end_date": end_date.strftime("%Y-%m-%d %H:%M:%S"),
+        "start_time": start_date.strftime("%Y-%m-%d %H:%M:%S"),
+        "end_time": end_date.strftime("%Y-%m-%d %H:%M:%S"),
     }
     if models:
         params["models"] = models
     if groups:
         params["groups"] = groups
 
+    if not interval:
+        if delta < timedelta(hours=1):
+            interval = 5*60
+        elif delta < timedelta(days=7):
+            interval = 15*60
+        elif delta < timedelta(days=14):
+            interval = 3600
+        else:
+            interval = 24*3600
+
+    params["interval"] = interval
     df = pipe_to_df("metrics_total", params=params, api_token=api_token)
     df["ts"] = pd.to_datetime(df["ts"])
 
@@ -99,35 +111,6 @@ def get_metrics(
         "total_cost",
     ]
     df[int_columns] = df[int_columns].astype(float)
-
-    if not interval:
-        if delta < timedelta(hours=1):
-            interval = "5t"
-        elif delta < timedelta(days=2):
-            interval = "15t"
-        elif delta < timedelta(days=7):
-            interval = "1h"
-        else:
-            interval = "1d"
-
-    df.set_index("ts", inplace=True)
-    df = (
-        df.resample(interval)
-        .agg(
-            {
-                "request_count": "sum",
-                "generation_time_p50": "mean",
-                "generation_time_p95": lambda x: x.quantile(0.95),
-                "total_prompt_tokens": "sum",
-                "total_completion_tokens": "sum",
-                "tokens_per_sec_p50": "mean",
-                "tokens_per_sec_p95": lambda x: x.quantile(0.95),
-                "total_cost": "sum",
-            }
-        )
-        .reset_index()
-    )
-
     return df
 
 
