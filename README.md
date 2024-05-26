@@ -54,7 +54,7 @@ af source append prices airfold/sources/prices.csv
 ```
 
 Feel free to navigate to the UI and see all the sources and pipes you've pushed:
-![Airfold UI](https://i.gyazo.com/1b50dd68f7044982a21d77396f270997.png)
+![Airfold UI](https://i.gyazo.com/ba6002386052831056d6597588c8d0db.png)
 
 
 ## Let's ingest 1000 rows.
