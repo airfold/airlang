@@ -9,7 +9,7 @@
 - [Install](#install)
 - [Quick Start in 2 Minutes](#quick-start-in-2-minutes)
 - [Let's ingest 1000 rows.](#lets-ingest-1000-rows)
-- [Let's run the Streamlit dashboard](#lets-run-the-streamlit-dashboard)
+- [`streamlit run dashboard.py`](#streamlit-run-dashboardpy)
 
 ## Install
 
@@ -69,7 +69,7 @@ python main.py
 ```
 ![main.py](https://i.gyazo.com/f185d44504625d0f0a8869912fbc6e69.png)
 
-## Let's run the Streamlit dashboard
+## `streamlit run dashboard.py`
 
 Run the sample dashboard app:
 ```shell
