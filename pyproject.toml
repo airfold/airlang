@@ -4,13 +4,19 @@ version = "0.1.0"
 description = "Airfold LLM monitoring"
 readme = "README.md"
 authors = [
-    {name = "Constantine Peresypkin", email = "constantine@airfold.co"},
+    { name = "Constantine Peresypkin", email = "constantine@airfold.co" },
 ]
 dependencies = [
     "openai",
     "airfold-cli",
     "requests",
+    "pandas",
+    "numpy",
+    "typer",
+    "rich",
+    "plotly",
     "streamlit",
+    "streamlit-extras",
 ]
 requires-python = ">=3.10, <4"
 classifiers = [

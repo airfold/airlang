@@ -2,35 +2,112 @@ description: |
   Get metrics per model and group_id for a specific `start_time` to `end_time` period.
   Default: 1 DAY from now
 nodes:
-  - endpoint:
+  - intervals:
+      # language=clickhouse
       sql: |-
-        SELECT model,
-               group_id,
-               countMerge(request_count)                AS request_count,
-               quantileMerge(0.5)(generation_time_p50)  AS generation_time_p50,
-               quantileMerge(0.95)(generation_time_p95) AS generation_time_p95,
-               sumMerge(total_prompt_tokens)            AS total_prompt_tokens,
-               sumMerge(total_completion_tokens)        AS total_completion_tokens,
-               quantileMerge(0.5)(tokens_per_sec_p50)   AS tokens_per_sec_p50,
-               quantileMerge(0.95)(tokens_per_sec_p95)  AS tokens_per_sec_p95,
-               sumMerge(total_cost_prompt) + sumMerge(total_cost_completion) AS total_cost
-        FROM aggregate_1min
-        WHERE
+        WITH
             {% if start_time is defined %}
-                start >= toStartOfMinute({{ start_time }}:: DateTime)
+                toStartOfFiveMinutes({{ start_time }}:: DateTime)
             {% else %}
-                start >= now() - INTERVAL 1 DAY
+                toStartOfFiveMinutes(now() - INTERVAL 1 DAY)
             {% endif %}
-          AND
+            AS start,
             {% if end_time is defined %}
-                end <= toStartOfMinute({{ end_time }}:: DateTime)
+                toStartOfFiveMinutes({{ end_time }}:: DateTime)
             {% else %}
-                end <= now()
+                toStartOfFiveMinutes(now() + INTERVAL 5 MINUTES)
             {% endif %}
-        GROUP BY model, group_id
+            AS end
+        SELECT
+            {% if models is defined %}
+                arrayJoin(splitByChar(',', {{ models }})) AS model,
+            {% endif %}
+            {% if groups is defined %}
+                arrayJoin(splitByChar(',', {{ groups }})) AS group_id,
+            {% endif %}
+            arrayJoin(arrayMap(x -> toDateTime(x), range(toUInt32(start), toUInt32(end), 300))) as ts
+  - endpoint:
+      # language=clickhouse
+      sql: |-
+        SELECT i.ts,
+            {% if models is defined %}
+               i.model,
+            {% endif %}
+            {% if groups is defined %}
+               i.group_id,
+            {% endif %}
+               countMerge(a.request_count)                AS request_count,
+               quantileMerge(0.5)(a.generation_time_p50)  AS generation_time_p50,
+               quantileMerge(0.95)(a.generation_time_p95) AS generation_time_p95,
+               sumMerge(a.total_prompt_tokens)            AS total_prompt_tokens,
+               sumMerge(a.total_completion_tokens)        AS total_completion_tokens,
+               quantileMerge(0.5)(a.tokens_per_sec_p50)   AS tokens_per_sec_p50,
+               quantileMerge(0.95)(a.tokens_per_sec_p95)  AS tokens_per_sec_p95,
+               sumMerge(a.total_cost_prompt) + sumMerge(a.total_cost_completion) AS total_cost
+        FROM intervals i
+                 LEFT JOIN aggregate_1min a ON (
+            toStartOfFiveMinutes(a.start) = i.ts
+            {% if models is defined %}
+                AND i.model = a.model
+            {% endif %}
+            {% if groups is defined %}
+                AND i.group_id = a.group_id
+            {% endif %}
+            AND
+                {% if start_time is defined %}
+                    a.start >= toStartOfMinute({{ start_time }}:: DateTime)
+                {% else %}
+                    a.start >= now() - INTERVAL 1 DAY
+                {% endif %}
+            AND
+                {% if end_time is defined %}
+                    a.end <= toStartOfMinute({{ end_time }}:: DateTime)
+                {% else %}
+                    a.end <= now()
+                {% endif %}
+            )
+        WHERE 1 = 1
+            {% if groups is defined %}
+                AND group_id IN (splitByChar(',', {{ groups }}))
+            {% endif %}
+            {% if models is defined %}
+                AND model IN (splitByChar(',', {{ models }}))
+            {% endif %}
+        GROUP BY
+        {% if models is defined %}
+          model,
+        {% endif %}
+        {% if groups is defined %}
+          group_id,
+        {% endif %}
+          ts
+  - coalesce:
+      # language=clickhouse
+      sql: |
+        SELECT ts,
+               {% if models is defined %}
+               model,
+               {% endif %}
+               {% if groups is defined %}
+               group_id,
+               {% endif %}
+               request_count,
+               if(isNaN(generation_time_p50), 0, generation_time_p50) AS generation_time_p50,
+               if(isNaN(generation_time_p95), 0, generation_time_p95) AS generation_time_p95,
+               total_prompt_tokens,
+               total_completion_tokens,
+               if(isNaN(tokens_per_sec_p50), 0, tokens_per_sec_p50)   AS tokens_per_sec_p50,
+               if(isNaN(tokens_per_sec_p95), 0, tokens_per_sec_p95)   AS tokens_per_sec_p95,
+               total_cost
+        FROM endpoint
+        ORDER by ts
 params:
   - name: start_time
     type: datetime
   - name: end_time
     type: datetime
+  - name: groups
+    type: string
+  - name: models
+    type: string
 publish: metrics

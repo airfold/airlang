@@ -1,153 +1,226 @@
 import os
-
-import streamlit as st
-import requests
-import pandas as pd
-import altair as alt
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide")
-st.title("LLM Metrics Dashboard")
+import pandas as pd
+import plotly.express as px
+import requests
+import streamlit as st
+from streamlit_extras.colored_header import colored_header
 
+# Streamlit app configuration
+st.set_page_config(
+    page_title="LLM Monitoring",
+    layout="wide",
+    page_icon="📊",
+    menu_items={"Get help": "https://github.com/airfold/airlang", "About": "https://www.airfold.co"},
+)
+
+# Title and description
+colored_header(
+    label="LLM Monitoring",
+    description="Use the filters to select specific date ranges, models, and group IDs to view the corresponding metrics.",
+    color_name="red-70",
+)
+
+# Constants and environment variables
 api_url = "https://api.airfold.co/v1"
-api_token = os.environ["AIRFOLD_API_KEY"]
+api_token = os.getenv("AIRFOLD_API_KEY")
 
-end_date = datetime.now().date()
-start_date = end_date - timedelta(days=7)
-groups = ["<None>"]
-models = ["<None>"]
+# Date range options
+date_options = {
+    "15 mins": timedelta(minutes=15),
+    "30 mins": timedelta(minutes=30),
+    "1 hour": timedelta(hours=1),
+    "3 hours": timedelta(hours=3),
+    "12 hours": timedelta(hours=12),
+    "24 hours": timedelta(days=1),
+    "2 days": timedelta(days=2),
+    "7 days": timedelta(days=7),
+    "30 days": timedelta(days=30),
+}
 
-cols = st.columns(4)
-with cols[0]:
-    start_date = st.date_input("Start Date", value=start_date)
-with cols[1]:
-    end_date = st.date_input("End Date", value=end_date)
 
-top_graph = st.empty()
-with top_graph.container(height=500):
-    st.write("Loading graph...")
-    st.spinner(text="")
-col1, col2, col3 = st.columns(3)
-with col1:
-    left_graph = st.empty()
-with col2:
-    middle_graph = st.empty()
-with col3:
-    right_graph = st.empty()
+def pipe_to_df(pipe, params=None, api_token=None):
+    if not api_token:
+        api_token = os.getenv("AIRFOLD_API_KEY")
 
-headers = {"Authorization": f"Bearer {api_token}"}
-date_range = pd.date_range(start=start_date, end=end_date, freq="D")
-df = pd.DataFrame(columns=["date"])
+    url = f"https://api.airfold.co/v1/pipes/{pipe}.json"
+    headers = {"Authorization": f"Bearer {api_token}"}
 
-response = requests.get(f"{api_url}/pipes/groups.json", headers=headers)
-if response.status_code == 200:
-    data = response.json()
-    if data["data"]:
-        groups.extend([row["group_id"] for row in data["data"]])
-    else:
-        st.error(f"Error: {response.status_code} - {response.text}")
-
-response = requests.get(f"{api_url}/pipes/models.json", headers=headers)
-if response.status_code == 200:
-    data = response.json()
-    if data["data"]:
-        models.extend([row["model"] for row in data["data"]])
-    else:
-        st.error(f"Error: {response.status_code} - {response.text}")
-
-if 'selected_model' not in st.session_state:
-    st.session_state.selected_model = models[0]
-if 'selected_group' not in st.session_state:
-    st.session_state.selected_group = groups[0]
-with cols[2]:
-    model = st.selectbox("Filter by model", models, key="model_select")
-    if model != st.session_state.selected_model:
-        st.session_state.selected_model = model
-with cols[3]:
-    group = st.selectbox("Filter by group id", groups, key="group_select")
-    if group != st.session_state.selected_group:
-        st.session_state.selected_group = group
-
-for date in date_range:
-    start_time = date.isoformat()
-    end_time = (date + timedelta(days=1)).isoformat()
-
-    params = {"start_time": start_time, "end_time": end_time}
-    if model != "<None>":
-        params["model"] = model
-    if group != "<None>":
-        params["group"] = group
-    response = requests.get(f"{api_url}/pipes/metrics_total.json", headers=headers, params=params)
-
+    response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
-        data = response.json()
-        if data["data"]:
-            row = dict([(k, v if v is not None else 0) for k,v in data["data"][0].items()])
-            df = df._append({"date": date.date(), **row}, ignore_index=True)
+        data = response.json()["data"]
+        df = pd.DataFrame(data)
+        return df
     else:
-        st.error(f"Error: {response.status_code} - {response.text}")
-        break
+        response.raise_for_status()
 
-request_count_chart = (
-    alt.Chart(df)
-    .mark_line()
-    .encode(
-        x=alt.X("date:T", title="Date"),
-        y=alt.Y("request_count:Q", title="Request Count"),
-        tooltip=["date", "request_count"],
+
+def get_total_metrics(api_token=None):
+    return pipe_to_df("metrics_all_time", api_token=api_token)
+
+
+def get_metrics(
+    start_date: datetime = None,
+    end_date: datetime = None,
+    models=None,
+    groups=None,
+    delta=None,
+    interval=None,
+    api_token=None,
+):
+    models = models or ""
+    groups = groups or ""
+
+    if delta is not None:
+        end_date = datetime.now()
+        start_date = end_date - delta
+    else:
+        end_date = end_date or datetime.now()
+        start_date = start_date or end_date - timedelta(days=7)
+
+    params = {
+        "start_date": start_date.strftime("%Y-%m-%d %H:%M:%S"),
+        "end_date": end_date.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    if models:
+        params["models"] = models
+    if groups:
+        params["groups"] = groups
+
+    df = pipe_to_df("metrics_total", params=params, api_token=api_token)
+    df["ts"] = pd.to_datetime(df["ts"])
+
+    # Convert relevant columns to integers
+    int_columns = [
+        "request_count",
+        "total_prompt_tokens",
+        "total_completion_tokens",
+        "total_cost",
+    ]
+    df[int_columns] = df[int_columns].astype(float)
+
+    if not interval:
+        if delta < timedelta(hours=1):
+            interval = "5t"
+        elif delta < timedelta(days=2):
+            interval = "15t"
+        elif delta < timedelta(days=7):
+            interval = "1h"
+        else:
+            interval = "1d"
+
+    df.set_index("ts", inplace=True)
+    df = (
+        df.resample(interval)
+        .agg(
+            {
+                "request_count": "sum",
+                "generation_time_p50": "mean",
+                "generation_time_p95": lambda x: x.quantile(0.95),
+                "total_prompt_tokens": "sum",
+                "total_completion_tokens": "sum",
+                "tokens_per_sec_p50": "mean",
+                "tokens_per_sec_p95": lambda x: x.quantile(0.95),
+                "total_cost": "sum",
+            }
+        )
+        .reset_index()
     )
-    .interactive()
-)
 
-generation_time_chart = (
-    alt.Chart(df)
-    .transform_calculate(**{
-        "p50": "datum.generation_time_p50",
-        "p95": "datum.generation_time_p95",
-    })
-    .transform_fold(["p50", "p95"])
-    .mark_line()
-    .encode(
-        x=alt.X("date:T", title="Date"),
-        y=alt.Y("value:Q", title="Generation Time (ms)"),
-        color=alt.Color("key:N", title="Percentile"),
+    return df
+
+
+# Sidebar for filters
+with st.sidebar:
+    st.image(
+        "https://i.gyazo.com/b8ea59576765a4b5065b8cf1ef9e701d.png",
+        width=200,
     )
-    .interactive()
-)
 
-tokens_per_sec_chart = (
-    alt.Chart(df)
-    .transform_calculate(**{
-        "p50": "datum.tokens_per_sec_p50",
-        "p95": "datum.tokens_per_sec_p95",
-    })
-    .transform_fold(["p50", "p95"])
-    .mark_line()
-    .encode(
-        x=alt.X("date:T", title="Date"),
-        y=alt.Y("value:Q", title="Tokens per Second"),
-        color=alt.Color("key:N", title="Percentile"),
-    )
-    .interactive()
-)
+    st.header("Filters")
 
-total_cost_chart = (
-    alt.Chart(df)
-    .mark_line()
-    .encode(
-        x=alt.X("date:T", title="Date"),
-        y=alt.Y("total_cost:Q", title="Total Cost, $"),
-        tooltip=["date", "total_cost"],
-    )
-    .interactive()
-)
+    # Date range slider
+    date_range = st.select_slider("Select Date Range", options=list(date_options.keys()), value="7 days")
+    selected_duration = date_options[date_range]
 
-top_graph.altair_chart(request_count_chart, use_container_width=True)
+    end_date = datetime.now()
+    start_date = end_date - selected_duration
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    left_graph.altair_chart(generation_time_chart, use_container_width=True)
-with col2:
-    middle_graph.altair_chart(tokens_per_sec_chart, use_container_width=True)
-with col3:
-    right_graph.altair_chart(total_cost_chart, use_container_width=True)
+    # Fetch available models and groups
+    headers = {"Authorization": f"Bearer {api_token}"}
+    models, groups = [], []
+
+    # Fetch groups
+    response = requests.get(f"{api_url}/pipes/groups.json", headers=headers)
+    if response.status_code == 200:
+        data = response.json().get("data", [])
+        groups.extend([row["group_id"] for row in data])
+    else:
+        st.error(f"Error fetching groups: {response.status_code} - {response.text}")
+
+    # Fetch models
+    response = requests.get(f"{api_url}/pipes/models.json", headers=headers)
+    if response.status_code == 200:
+        data = response.json().get("data", [])
+        models.extend([row["model"] for row in data])
+    else:
+        st.error(f"Error fetching models: {response.status_code} - {response.text}")
+
+    # Multi-select boxes for models and groups
+    selected_models = st.multiselect("Filter by Model", models, default=[])
+    selected_groups = st.multiselect("Filter by Group ID", groups, default=[])
+
+    # Refresh button
+    refresh_button = st.button("Refresh")
+
+
+df = get_metrics(start_date, end_date, selected_models, selected_groups, api_token=api_token, delta=selected_duration)
+total_df = get_total_metrics(api_token=api_token)
+
+print(df)
+
+
+# Display high-level metrics
+def display_metrics(df):
+    if not df.empty:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Requests", total_df["request_count"][0])
+        col2.metric("Total Cost", "$" + str(round(total_df["total_cost"][0], 2)))
+        col3.metric("Average Generation Time", str(total_df["generation_time_p50"][0]) + "s")
+        col4.metric("Average Tokens per Second", round(total_df["tokens_per_sec_p50"][0], 2))
+
+
+# Display charts
+def display_charts(df):
+    if not df.empty:
+        col1, col2 = st.columns(2)
+        fig1 = px.line(df, x="ts", y="request_count", title="Total Requests")
+        col1.plotly_chart(fig1)
+
+        fig4 = px.line(df, x="ts", y="total_cost", title="Total Cost")
+        col1.plotly_chart(fig4)
+
+        fig2 = px.line(
+            df,
+            x="ts",
+            y=["generation_time_p50", "generation_time_p95"],
+            title="Generation Time",
+            labels={"value": "Generation Time", "variable": "Metric"},
+        )
+        col2.plotly_chart(fig2)
+
+        fig3 = px.line(
+            df,
+            x="ts",
+            y=["tokens_per_sec_p50", "tokens_per_sec_p95"],
+            title="Tokens/sec",
+            labels={"value": "Tokens per Second", "variable": "Metric"},
+        )
+        col2.plotly_chart(fig3)
+
+
+# Main content
+with st.spinner("Loading data..."):
+    display_metrics(df)
+    display_charts(df)

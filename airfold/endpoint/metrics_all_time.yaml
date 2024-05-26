@@ -1,0 +1,14 @@
+nodes:
+  - endpoint:
+      # language=clickhouse
+      sql: |
+        SELECT countMerge(request_count)                                       AS request_count,
+               quantileMerge(0.5)(generation_time_p50)                         AS generation_time_p50,
+               quantileMerge(0.95)(generation_time_p95)                        AS generation_time_p95,
+               sumMerge(total_prompt_tokens)                                   AS total_prompt_tokens,
+               sumMerge(total_completion_tokens)                               AS total_completion_tokens,
+               quantileMerge(0.5)(tokens_per_sec_p50)                          AS tokens_per_sec_p50,
+               quantileMerge(0.95)(tokens_per_sec_p95)                         AS tokens_per_sec_p95,
+               sumMerge(total_cost_prompt) + sumMerge(total_cost_completion)   AS total_cost
+        FROM aggregate_1min
+publish: metrics_all_time
