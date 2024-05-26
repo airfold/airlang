@@ -37,7 +37,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install -r requirements.txt
 
       - name: Setup token
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
