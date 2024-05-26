@@ -1,89 +1,81 @@
-## Airlang: simple flexible LLM monitoring with Airfold
+# Airang
 
-### Install
+## ⚡ From Zero to Monitoring LLMs in 5 minutes ⚡
 
-Install the project into venv:
+![Airlang](https://i.gyazo.com/024ef0910fe371a06da1250f0def5a70.png)
+
+**⚡ 3 components: OpenAI, Streamlit, Airfold**
+
+- [Airang](#airang)
+  - [⚡ From Zero to Monitoring LLMs in 5 minutes ⚡](#-from-zero-to-monitoring-llms-in-5-minutes-)
+  - [Install](#install)
+  - [Quick Start in 2 Minutes](#quick-start-in-2-minutes)
+  - [Let's ingest 1000 rows.](#lets-ingest-1000-rows)
+  - [Let's run the Streamlit dashboard](#lets-run-the-streamlit-dashboard)
+
+
+## Install
+
+Install requirements (ideally in a virtual environment):
 
 ```shell
-python3 -m venv .venv
-. ./.venv/bin/activate
-pip install -e .
+pip install -r requirements.txt
 ```
 
-### Configure
+## Quick Start in 2 Minutes
+To get started we simply need to create a workspace in [Airfold](https://airfold.co) and retrieve an API key.
+It's 100% free and takes less than a minute.
 
-Before we begin, we need to create a workspace to store our data and resources, as well as a token to authenticate our CLI.
 
-Go to [Airfold](https://app.airfold.co/) and create a new workspace.  
-Copy an Admin token from the workspace’s Token page.  
-The token should look like this: `aft_6eab8fcd902e4cbfb63ba174469989cd.Ds1PME5dQsJKosKQWVcZiBSlRFBbmhzIocvHg8KQddV`.
+We use Airfold because it makes it so much easier to build real-time applications.
 
-Then you can configure airfold CLI, by running `af config`:
+
+1. Go to [Airfold app](https://app.airfold.co/) and create a new workspace.
+
+2. Press on the "Admin" token on the sidebar and copy it.
+The token should look like this: `aft_6eab...KQvCddV`.
+
+1. Then simply run `af config` in the project folder and paste the token:
 
 ```shell
 $ af config
 Configuring for API URL: https://api.airfold.co
-? Api key: aft_6eab8fcd902e4cbfb63ba174469989cd.Ds1PME5dQsJKosKQWVcZiBSlRFBbmhzIocvHg8KQddV
+? Api key: aft_6eab8...ocvKQddV
 
 🚀 config successfully set up!
 You can manually modify it in: '/home/user/airlang/.airfold/config.yaml'
 ```
 
-### Set up the monitoring pipeline
-
-Push the pipeline project into you Airfold workspace:
+4. Push the project to your Airfold workspace:
 ```shell
 af push ./airfold
 ```
-List the sources:
-```shell
-                                    4 sources                                    
-┌──────────────────────┬──────┬───────────┬────────┬──────────────┬──────────────┐
-│ Name                 │ Rows │ Bytes     │ Errors │ Created      │ Updated      │
-╞══════════════════════╪══════╪═══════════╪════════╪══════════════╪══════════════╡
-│ aggregate_1min       │ 0    │ 0 Bytes   │ 0      │ a second ago │ a second ago │
-├──────────────────────┼──────┼───────────┼────────┼──────────────┼──────────────┤
-│ events               │ 0    │ 0 Bytes   │ 0      │ a second ago │ a second ago │
-├──────────────────────┼──────┼───────────┼────────┼──────────────┼──────────────┤
-│ high_processing_time │ 0    │ 0 Bytes   │ 0      │ a second ago │ a second ago │
-├──────────────────────┼──────┼───────────┼────────┼──────────────┼──────────────┤
-│ prices               │ 0    │ 0 Bytes   │ 0      │ a second ago │ a second ago │
-└──────────────────────┴──────┴───────────┴────────┴──────────────┴──────────────┘
-```
 
-Add the pricing data to calculate costs:
+5. Add the pricing data to calculate costs:
 ```shell
 af source append prices airfold/sources/prices.csv
 ```
 
-### Send monitoring events
+Feel free to navigate to the UI and see all the sources and pipes you've pushed:
+![Airfold UI](https://i.gyazo.com/1b50dd68f7044982a21d77396f270997.png)
 
-Run the supplied example script `main.py`
-You will need two API keys: `OPENAI_API_KEY` and `AIRFOLD_API_KEY`
+
+## Let's ingest 1000 rows.
+
+Run the script `main.py`
+You will need to set API keys: `OPENAI_API_KEY` and `AIRFOLD_API_KEY`
 
 ```shell
-$ OPENAI_API_KEY=sk-111111111 \
-AIRFOLD_API_KEY=aft_6eab8fcd902e4cbfb63ba174469989cd.Ds1PME5dQsJKosKQWVcZiBSlRFBbmhzIocvHg8KQddV \
+$ OPENAI_API_KEY=sk-xxxxxxxxx \
+AIRFOLD_API_KEY=aft_6eab8f...QddV \
 python main.py
-
-{
-    "id": "chatcmpl-9S8rPT3uhmOFDaVyAnA5EEpSv9u50",
-    "model": "gpt-4o",
-    "group_id": "group01",
-    "processing_time": 860,
-    "req_tokens": 22,
-    "resp_tokens": 35,
-    "timestamp": 1716494271
-}
-$
 ```
-_you can create a special `ingest` key for this task in your Airfold workspace_
+![main.py](image.png)
 
-### Check the monitoring data on a dashboard
+## Let's run the Streamlit dashboard
 
 Run the sample dashboard app:
 ```shell
-AIRFOLD_API_KEY=aft_6eab8fcd902e4cbfb63ba174469989cd.Ds1PME5dQsJKosKQWVcZiBSlRFBbmhzIocvHg8KQddV \
+AIRFOLD_API_KEY=aft_6eab8f...ddV \
 streamlit run dashboard.py
 ```
-
