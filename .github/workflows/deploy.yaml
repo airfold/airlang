@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - airfold/**
+      - .github/**
   pull_request:
     branches:
       - main
     paths:
       - airfold/**
+      - .github/**
   workflow_dispatch:
 
 permissions:
@@ -35,39 +37,23 @@ jobs:
         with:
             python-version: 3.11
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Setup token
-        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
-        run: |
-          echo "${{ secrets.AIRFOLD_API_KEY }}" | af config
+      - name: Setup Airfold CLI
+        uses: airfold/setup-airfold@v1
+        with:
+          api-token: ${{ secrets.AIRFOLD_API_KEY }}
 
       - name: Airfold diff
         id: diff
         if: github.event_name == 'pull_request'
         run: |
-          af diff airfold | tee .out.txt
-          {
-            echo 'stdout<<aeshaiYei1'
-            cat .out.txt
-            echo
-            echo aeshaiYei1
-          } >> "$GITHUB_OUTPUT"
+          af diff airfold
         continue-on-error: true
 
       - name: Airfold plan
         id: plan
         if: github.event_name == 'pull_request'
         run: |
-          af push airfold --dry-run | tee .out.txt
-          {
-            echo 'stdout<<aeshaiYei1'
-            cat .out.txt
-            echo
-            echo aeshaiYei1
-          } >> "$GITHUB_OUTPUT"
+          af push airfold --dry-run
         continue-on-error: true
 
       - name: Pull Request Comment

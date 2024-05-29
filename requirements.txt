@@ -10,7 +10,7 @@ streamlit
 streamlit-extras
 build
 isort
-black<24
+black>=24.3.0
 mypy
 pytest
 pytest-env
